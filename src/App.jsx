@@ -1,22 +1,23 @@
-import { Link, Route, Routes, Navigate } from "react-router-dom";
-import ItemsPage from "./pages/ItemsPage.jsx";
-import UsersPage from "./pages/UsersPage.jsx";
+import { useState } from "react";
+import ItemsPage from "./pages/ItemsPage";
+import UsersPage from "./pages/UsersPage";
+import ProfilesPage from "./pages/ProfilesPage";
 
 export default function App() {
+  const [tab, setTab] = useState("profiles");
+
   return (
-    <div style={{ padding: 20, fontFamily: "Arial" }}>
+    <div style={{ padding: 20 }}>
       <h1>React CRUD</h1>
-
-      <nav style={{ display: "flex", gap: 12, marginBottom: 16 }}>
-        <Link to="/items">Items</Link>
-        <Link to="/users">Users</Link>
-      </nav>
-
-      <Routes>
-        <Route path="/" element={<Navigate to="/items" replace />} />
-        <Route path="/items" element={<ItemsPage />} />
-        <Route path="/users" element={<UsersPage />} />
-      </Routes>
+      <div style={{ display: "flex", gap: 10 }}>
+        <button onClick={() => setTab("items")}>Items</button>
+        <button onClick={() => setTab("users")}>Users</button>
+        <button onClick={() => setTab("profiles")}>Profiles</button>
+      </div>
+      <hr />
+      {tab === "items" && <ItemsPage />}
+      {tab === "users" && <UsersPage />}
+      {tab === "profiles" && <ProfilesPage />}
     </div>
   );
 }
