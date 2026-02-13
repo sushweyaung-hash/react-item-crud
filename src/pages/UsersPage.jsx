@@ -1,32 +1,32 @@
 import { useCallback, useEffect, useState } from "react";
 
-const API = "/api/items";
+const API = "/api/user";
 
-export default function ItemsPage() {
-  const [items, setItems] = useState([]);
+export default function UsersPage() {
+  const [users, setUsers] = useState([]);
   const [page, setPage] = useState(1);
   const [limit] = useState(5);
   const [totalPages, setTotalPages] = useState(1);
 
   const [form, setForm] = useState({
-    itemName: "",
-    itemCategory: "",
-    itemPrice: "",
+    fullName: "",
+    email: "",
+    role: "user",
     status: "active",
   });
 
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const loadItems = useCallback(
+  const loadUsers = useCallback(
     async (p = 1) => {
       setLoading(true);
       try {
         const res = await fetch(`${API}?page=${p}&limit=${limit}`);
         const data = await res.json();
-        if (!data.ok) throw new Error(data.error || "Failed to load items");
+        if (!data.ok) throw new Error(data.error || "Failed to load users");
 
-        setItems(data.items || []);
+        setUsers(data.users || []);
         setPage(data.page || p);
         setTotalPages(data.totalPages || 1);
       } catch (err) {
@@ -39,34 +39,36 @@ export default function ItemsPage() {
   );
 
   useEffect(() => {
-    loadItems(1);
-  }, [loadItems]);
+    loadUsers(1);
+  }, [loadUsers]);
 
   function handleChange(e) {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   }
 
-  function resetForm() {
-    setEditingId(null);
-    setForm({ itemName: "", itemCategory: "", itemPrice: "", status: "active" });
+  function startEdit(u) {
+    setEditingId(u._id);
+    setForm({
+      fullName: u.fullName ?? "",
+      email: u.email ?? "",
+      role: u.role ?? "user",
+      status: u.status ?? "active",
+    });
   }
 
-  function editItem(item) {
-    setEditingId(item._id);
-    setForm({
-      itemName: item.itemName ?? "",
-      itemCategory: item.itemCategory ?? "",
-      itemPrice: String(item.itemPrice ?? ""),
-      status: item.status ?? "active",
-    });
+  function resetForm() {
+    setEditingId(null);
+    setForm({ fullName: "", email: "", role: "user", status: "active" });
   }
 
   async function submitForm(e) {
     e.preventDefault();
 
     const payload = {
-      ...form,
-      itemPrice: Number(form.itemPrice),
+      fullName: String(form.fullName).trim(),
+      email: String(form.email).trim(),
+      role: form.role,
+      status: form.status,
     };
 
     const url = editingId ? `${API}/${editingId}` : API;
@@ -78,25 +80,29 @@ export default function ItemsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
+
+      // If backend ever returns empty body, this avoids "Unexpected end of JSON input"
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : { ok: false, error: "Empty response" };
+
       if (!data.ok) throw new Error(data.error || "Save failed");
 
       resetForm();
-      await loadItems(page);
+      await loadUsers(page); // refresh list so you SEE the update
     } catch (err) {
       alert(String(err));
     }
   }
 
-  async function deleteItem(id) {
-    if (!confirm("Delete this item?")) return;
+  async function deleteUser(id) {
+    if (!confirm("Delete this user?")) return;
 
     try {
       const res = await fetch(`${API}/${id}`, { method: "DELETE" });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Delete failed");
 
-      await loadItems(page);
+      await loadUsers(page);
     } catch (err) {
       alert(String(err));
     }
@@ -104,37 +110,36 @@ export default function ItemsPage() {
 
   return (
     <div>
-      <h2>Item Manager</h2>
+      <h2>User Management</h2>
 
       <form onSubmit={submitForm} style={{ display: "grid", gap: 8, maxWidth: 420 }}>
         <input
-          name="itemName"
-          placeholder="Name"
-          value={form.itemName}
+          name="fullName"
+          placeholder="Full Name"
+          value={form.fullName}
           onChange={handleChange}
           required
         />
         <input
-          name="itemCategory"
-          placeholder="Category"
-          value={form.itemCategory}
+          name="email"
+          placeholder="Email"
+          value={form.email}
           onChange={handleChange}
           required
         />
-        <input
-          name="itemPrice"
-          type="number"
-          placeholder="Price"
-          value={form.itemPrice}
-          onChange={handleChange}
-          required
-        />
+
+        <select name="role" value={form.role} onChange={handleChange}>
+          <option value="user">user</option>
+          <option value="admin">admin</option>
+        </select>
+
         <select name="status" value={form.status} onChange={handleChange}>
           <option value="active">active</option>
           <option value="inactive">inactive</option>
         </select>
 
-        <button type="submit">{editingId ? "Update" : "Insert"}</button>
+        <button type="submit">{editingId ? "Update User" : "Create User"}</button>
+
         {editingId && (
           <button type="button" onClick={resetForm}>
             Cancel
@@ -144,30 +149,32 @@ export default function ItemsPage() {
 
       <hr />
 
-      <h3>Items</h3>
+      <h3>Users</h3>
+
       {loading ? (
         <p>Loading...</p>
-      ) : items.length === 0 ? (
-        <p>No items found.</p>
+      ) : users.length === 0 ? (
+        <p>No users found.</p>
       ) : (
-        items.map((it) => (
-          <div key={it._id} style={{ display: "flex", gap: 10, marginBottom: 6 }}>
-            <span style={{ minWidth: 140 }}>{it.itemName}</span>
-            <span style={{ minWidth: 120 }}>{it.itemCategory}</span>
-            <span style={{ minWidth: 80 }}>{it.itemPrice}</span>
-            <span style={{ minWidth: 80 }}>{it.status}</span>
-            <button onClick={() => editItem(it)}>Edit</button>
-            <button onClick={() => deleteItem(it._id)}>Delete</button>
+        users.map((u) => (
+          <div key={u._id} style={{ display: "flex", gap: 10, marginBottom: 6 }}>
+            <span style={{ minWidth: 160 }}>{u.fullName}</span>
+            <span style={{ minWidth: 240 }}>{u.email}</span>
+            <span style={{ minWidth: 80 }}>{u.role}</span>
+            <span style={{ minWidth: 80 }}>{u.status}</span>
+
+            <button onClick={() => startEdit(u)}>Edit</button>
+            <button onClick={() => deleteUser(u._id)}>Delete</button>
           </div>
         ))
       )}
 
       <div style={{ marginTop: 12 }}>
-        <button disabled={page <= 1} onClick={() => loadItems(page - 1)}>
+        <button disabled={page <= 1} onClick={() => loadUsers(page - 1)}>
           Prev
         </button>{" "}
         Page {page} / {totalPages}{" "}
-        <button disabled={page >= totalPages} onClick={() => loadItems(page + 1)}>
+        <button disabled={page >= totalPages} onClick={() => loadUsers(page + 1)}>
           Next
         </button>
       </div>
